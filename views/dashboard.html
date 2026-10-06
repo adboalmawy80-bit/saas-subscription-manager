@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">نظام الاشتراكات</a>
+            <div class="d-flex align-items-center">
+                <span class="text-white me-3" id="userName">مرحباً</span>
+                <a href="/logout" class="btn btn-outline-light btn-sm">خروج</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">إضافة اشتراك جديد</h5>
+                        <form id="addForm">
+                            <div class="mb-3">
+                                <label class="form-label">اسم العميل</label>
+                                <input type="text" id="client_name" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">الخدمة / المنتج</label>
+                                <input type="text" id="service_name" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">السعر ($)</label>
+                                <input type="number" step="0.01" id="price" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">الحالة</label>
+                                <select id="status" class="form-select">
+                                    <option value="active">نشط</option>
+                                    <option value="pending">معلق</option>
+                                    <option value="cancelled">ملغي</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">حفظ</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">قائمة الاشتراكات</h5>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>العميل</th>
+                                        <th>الخدمة</th>
+                                        <th>السعر</th>
+                                        <th>الحالة</th>
+                                        <th>إجراء</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="subTable">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function init() {
+            const userRes = await fetch('/api/user-info');
+            if (userRes.ok) {
+                const userData = await userRes.json();
+                document.getElementById('userName').textContent = `مرحباً، ${userData.name}`;
+            }
+            loadSubscriptions();
+        }
+
+        async function loadSubscriptions() {
+            const res = await fetch('/api/subscriptions');
+            const data = await res.json();
+            const tbody = document.getElementById('subTable');
+            tbody.innerHTML = '';
+
+            data.forEach(sub => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${sub.client_name}</td>
+                    <td>${sub.service_name}</td>
+                    <td>$${sub.price}</td>
+                    <td><span class="badge bg-${sub.status === 'active' ? 'success' : sub.status === 'pending' ? 'warning' : 'danger'}">${sub.status}</span></td>
+                    <td><button onclick="deleteSub(${sub.id})" class="btn btn-danger btn-sm">حذف</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('addForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await fetch('/api/subscriptions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    client_name: document.getElementById('client_name').value,
+                    service_name: document.getElementById('service_name').value,
+                    price: document.getElementById('price').value,
+                    status: document.getElementById('status').value
+                })
+            });
+            document.getElementById('addForm').reset();
+            loadSubscriptions();
+        });
+
+        async function deleteSub(id) {
+            if (confirm('هل أنت تأكد من الحذف؟')) {
+                await fetch(`/api/subscriptions/${id}`, { method: 'DELETE' });
+                loadSubscriptions();
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
